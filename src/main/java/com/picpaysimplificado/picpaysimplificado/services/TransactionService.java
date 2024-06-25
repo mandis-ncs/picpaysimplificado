@@ -21,18 +21,21 @@ public class TransactionService {
     private UserService userService;
 
     @Autowired
+    private NotificationService notificationService;
+
+    @Autowired
     private TransactionRepository repository;
 
     @Autowired
-    private RestTemplate restTemplate; //enable HTTP request between services
+    private AuthorizationService authorizationService;
 
-    public void createTransaction(TransactionDTO transaction) throws Exception {
+    public Transaction createTransaction(TransactionDTO transaction) throws Exception {
         User sender = this.userService.findUserById(transaction.senderId());
         User receiver = this.userService.findUserById(transaction.receiverId());
 
         userService.validateTransaction(sender, transaction.value()); //value = amount from User
 
-        boolean isAuthorized = this.authorizeTransaction(sender, transaction.value());
+        boolean isAuthorized = this.authorizationService.authorizeTransaction(sender, transaction.value());
         if (!isAuthorized){
             throw new Exception("Transaction is not authorized.");
         }
@@ -50,14 +53,9 @@ public class TransactionService {
         this.userService.saveUser(sender);
         this.userService.saveUser(receiver);
 
-    }
+        this.notificationService.sendNotification(sender, "Transaction successful.");
+        this.notificationService.sendNotification(receiver, "Transaction received.");
 
-    public boolean authorizeTransaction(User sender, BigDecimal value){
-        ResponseEntity<Map> authorizationResponse = restTemplate.getForEntity("https://util.devi.tools/api/v2/authorize", Map.class);
-
-        if (authorizationResponse.getStatusCode() == HttpStatus.OK){
-            String message = (String) authorizationResponse.getBody().get("message"); //(String) is making a quest to return as String
-            return "Authorized".equalsIgnoreCase(message);
-        } else return false;
+        return newTransaction;
     }
 }
