@@ -1,5 +1,6 @@
 package com.picpaysimplificado.picpaysimplificado.services;
 
+import com.picpaysimplificado.picpaysimplificado.domain.authorization.AuthorizationResponse;
 import com.picpaysimplificado.picpaysimplificado.domain.user.User;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -21,12 +22,16 @@ public class AuthorizationService {
     private String authApiUrl;
 
     public boolean authorizeTransaction(User sender, BigDecimal value){
-        ResponseEntity<Map> authorizationResponse = restTemplate.getForEntity(this.authApiUrl, Map.class);
+        ResponseEntity<AuthorizationResponse> authorizationResponse =
+                restTemplate.getForEntity(this.authApiUrl, AuthorizationResponse.class);
 
-        if(authorizationResponse.getStatusCode() == HttpStatus.OK){
-            String message = (String) authorizationResponse.getBody().get("message");
-            return "Autorizado".equalsIgnoreCase(message);
-        } else return false;
+        if (authorizationResponse.getStatusCode() == HttpStatus.OK) {
+            AuthorizationResponse body = authorizationResponse.getBody();
+
+            if (body != null && "success".equalsIgnoreCase(body.status())) {
+                return Boolean.TRUE.equals(body.data().authorization());
+            }
+        } return false;
     }
 
 }
